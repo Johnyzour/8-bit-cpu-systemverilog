@@ -1,0 +1,57 @@
+// program.mem: test program (programs/test.asm) for the SystemVerilog CPU
+// Read by $readmemh in memory.sv: hex bytes separated by whitespace fill
+// addresses 00, 01, 02 ... in order; // starts a comment.
+// One instruction per line: opcode, rd/rs, imm (3 bytes at 3n, 3n+1, 3n+2).
+
+01 00 0F   // 00: LDI R0, 0F
+01 10 3C   // 03: LDI R1, 3C
+02 21 00   // 06: MOV R2, R1             R2 = 3C
+05 20 00   // 09: ADD R2, R0             R2 = 4B
+07 21 00   // 0C: AND R2, R1             R2 = 08
+08 20 00   // 0F: OR R2, R0              R2 = 0F
+09 20 00   // 12: XOR R2, R0             R2 = 00, Z = 1
+0D 00 1B   // 15: JZ skip1               taken
+01 30 FF   // 18: LDI R3, FF             must be skipped
+0A 20 00   // 1B: skip1: NOT R2          R2 = FF
+04 20 F0   // 1E: ST R2, F0              MEM[F0] = FF
+03 30 F0   // 21: LD R3, F0              R3 = FF
+06 01 00   // 24: SUB R0, R1             R0 = D3, C = 1
+0F 00 2D   // 27: JC skip2               taken
+01 30 00   // 2A: LDI R3, 00             must be skipped
+0B 32 00   // 2D: skip2: CMP R3, R2      Z = 1, R3 unchanged
+0E 00 99   // 30: JNZ halt               not taken
+00 00 00   // 33: NOP
+12 20 00   // 36: INC R2                 R2 = 00, Z = 1, C = 1
+13 10 00   // 39: DEC R1                 R1 = 3B
+10 00 00   // 3C: SHL R0                 R0 = A6, C = 1
+11 00 00   // 3F: SHR R0                 R0 = 53, C = 0
+16 00 5A   // 42: CALL sub1              SP = EF, MEM[EF] = 45
+14 00 00   // 45: PUSH R0                SP = EF, MEM[EF] = 54
+15 20 00   // 48: POP R2                 R2 = 54, SP = F0
+01 30 03   // 4B: LDI R3, 03             loop counter
+16 00 69   // 4E: loop: CALL sub2        R0 = R0 + 1
+13 30 00   // 51: DEC R3
+0E 00 4E   // 54: JNZ loop               3 times, then R0 = 57
+0C 00 6F   // 57: JMP pointers           to the register-indirect section
+14 10 00   // 5A: sub1: PUSH R1          SP = EE, MEM[EE] = 3B
+01 10 77   // 5D: LDI R1, 77             R1 = 77
+16 00 69   // 60: CALL sub2              nested: SP = ED, MEM[ED] = 63
+15 10 00   // 63: POP R1                 R1 = 3B, SP = EF
+17 00 00   // 66: RET                    PC = 45, SP = F0
+12 00 00   // 69: sub2: INC R0
+17 00 00   // 6C: RET
+01 30 F1   // 6F: pointers: LDI R3, F1   pointer
+19 03 00   // 72: STR R0, [R3]           MEM[F1] = 57
+12 30 00   // 75: INC R3                 pointer = F2
+19 13 00   // 78: STR R1, [R3]           MEM[F2] = 3B
+12 30 00   // 7B: INC R3                 pointer = F3
+19 23 00   // 7E: STR R2, [R3]           MEM[F3] = 54
+01 00 00   // 81: LDI R0, 00             sum
+01 30 F1   // 84: LDI R3, F1             pointer back to F1
+01 20 03   // 87: LDI R2, 03             counter
+18 13 00   // 8A: sum: LDR R1, [R3]      R1 = MEM[pointer]
+05 01 00   // 8D: ADD R0, R1             sum
+12 30 00   // 90: INC R3                 next byte
+13 20 00   // 93: DEC R2
+0E 00 8A   // 96: JNZ sum                3 times
+0C 00 99   // 99: halt: JMP halt         R0 = E6

@@ -5,7 +5,8 @@ a simple 8-bit, multi-cycle, von Neumann CPU, verified with self-checking
 testbenches in the Vivado simulator (XSIM).
 
 **Status:** under development. Modules are being ported one at a time,
-bottom-up, each with its testbench. The design is not complete yet.
+bottom-up, each with its testbench. Every module except the top level
+(`cpu`) is done and passes its testbench.
 
 ---
 
@@ -33,41 +34,91 @@ a line-by-line translation.
 
 ## Progress
 
-| Module | RTL | Testbench |
-|---|---|---|
-| `mux2` | in progress | - |
-| `wb_mux` | - | - |
-| `pc` | - | - |
-| `sp` | - | - |
-| `flags_reg` | - | - |
-| `reg_file` | - | - |
-| `ir` | - | - |
-| `alu` | - | - |
-| `cpu_pkg` | - | - |
-| `memory` | - | - |
-| `control_unit` | - | - |
-| `cpu` | - | - |
+| Module | RTL | Testbench | Passes at |
+|---|---|---|---|
+| `mux2` | done | done | 100 ns |
+| `wb_mux` | done | done | 60 ns |
+| `pc` | done | done | 120 ns |
+| `sp` | done | done | 100 ns |
+| `flags_reg` | done | done | 90 ns |
+| `reg_file` | done | done | 140 ns |
+| `ir` | done | done | 110 ns |
+| `alu` | done | done | 320 ns |
+| `cpu_pkg` | done | - | (package, no testbench) |
+| `memory` | done | done | 150 ns |
+| `control_unit` | done | done | 1700 ns |
+| `cpu` | in progress | - | |
+
+Each testbench checks the same cases as its VHDL counterpart and prints
+`all tests completed and passed`, then ends with `$finish`.
 
 ---
 
 ## Project structure
 
 ```
-8-bit-cpu-sv/
-├── rtl/          SystemVerilog design files (.sv)
-├── tb/           SystemVerilog testbenches (.sv)
+8-bit-cpu-systemverilog/
+├── rtl/
+│   ├── cpu_pkg.sv
+│   ├── mux2.sv
+│   ├── wb_mux.sv
+│   ├── pc.sv
+│   ├── sp.sv
+│   ├── flags_reg.sv
+│   ├── reg_file.sv
+│   ├── ir.sv
+│   ├── alu.sv
+│   ├── memory.sv
+│   ├── program.mem
+│   └── control_unit.sv
+├── tb/
+│   ├── tb_mux2.sv
+│   ├── tb_wb_mux.sv
+│   ├── tb_pc.sv
+│   ├── tb_sp.sv
+│   ├── tb_flags_reg.sv
+│   ├── tb_reg_file.sv
+│   ├── tb_ir.sv
+│   ├── tb_alu.sv
+│   ├── tb_memory.sv
+│   └── tb_control_unit.sv
 └── README.md
 ```
 
 The assembler (`tools/`), the example programs (`programs/`) and the program
-runner will be carried over from the VHDL version as the CPU comes together;
-the instruction set is unchanged, so the assembler works as is.
+runner will be carried over from the VHDL version as the CPU comes together.
+
+### Program file
+
+`memory.sv` loads the program with `$readmemh`, so `rtl/program.mem` holds hex
+bytes separated by whitespace, filling addresses 00, 01, 02 ... in order, with
+`//` comments. Each line is one instruction (opcode, rd/rs, imm):
+
+```
+01 00 0F   // 00: LDI R0, 0F
+01 10 3C   // 03: LDI R1, 3C
+```
+
+This differs from the VHDL version (`01000F   -- ...`), whose loader was
+hand-written with `textio`. The current file is the VHDL test program
+(`test.asm`) converted to this format; the assembler will write it directly
+once it is carried over.
+
+### Coding conventions
+
+- `logic` everywhere; `always_ff` for registers, `always_comb` for combinational logic
+- Non-blocking `<=` in `always_ff`, blocking `=` in `always_comb` and testbenches
+- Every `always_comb` assigns defaults first, and every `case` has a `default`, so no latches are inferred
+- `begin`/`end` on their own lines: aligned with `always_ff`/`always_comb`/`initial`, indented one level under `if`/`else` and `case` items
+- Shared constants and the FSM state type (`state_t`, an enum) in `cpu_pkg`, imported with `import cpu_pkg::*;` in the module header
+- Testbenches use a `check` task per input set, `assert ... else $fatal`, and `===` so X values fail
 
 ---
 
 ## Tools
 
-- Vivado (XSIM for simulation, Vivado synthesis), simulation only, no board
+- Vivado 2026.1 (XSIM for simulation, Vivado synthesis), simulation only, no board
+- Sources are added to the Vivado project straight from `rtl/` and `tb/` (not copied), including `program.mem`
 - Python 3 for the assembler (standard library only)
 
 ---
